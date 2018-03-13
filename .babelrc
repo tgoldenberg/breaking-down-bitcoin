@@ -1,0 +1,21 @@
+{
+  "presets": ["es2015", "stage-2", "env"],
+  "plugins": [
+    ["transform-flow-strip-types"],
+    ["transform-class-properties"],
+    ["transform-async-to-generator"],
+    ["module-resolver", {
+      "root": ["."],
+      "alias": {
+        "classes": "./src/classes",
+        "store": "./src/store",
+        "utils": "./src/utils",
+        "models": "./src/models",
+        "mining": "./src/mining",
+        "db": "./src/db",
+        "__mocks__": "./__mocks__"
+      },
+      "cwd": "babelrc"
+    }],
+  ]
+}
