@@ -1,28 +1,90 @@
 import 'babel-polyfill';
 
-import { testVerification, unlockTransaction } from 'utils/verifySignature';
+import Express from 'express';
+import Pusher from 'pusher-js';
+import bodyParser from 'body-parser';
+import net from 'net';
+import network from 'network';
 
-import blocks from '__mocks__/blocks';
+// variables for Pusher network
+const PUSHER_APP_KEY = '86e36fb6cb404d67a108'; // connect via public key
+const MAX_PEERS = 25;
 
-const myWallet = {
-  privateKey      : '0fcb37c77f68a69b76cd5b160ac9c85877b4e8a09d8bcde2c778715c27f9a347',
-  publicKey       : '044283eb5f9aa7421f646f266fbf5f7a72b7229a7b90a088d1fe45292844557b1d80ed9ac96d5b3ff8286e7794e05c28f70ae671c7fecd634dd278eb0373e6a3ba',
-  publicKeyHash   : 'ed2f84f67943321bf73747936db3e7273ada7f6c',
-  address         : '1Nd85AnFYDtaQAG6vF9FVWXFWksG5HuA3M',
-  privateKeyWIF   : '5HwF1jU38V8YhpBy9PuNC4hTYkKrDccLE28qV7tLxZ7u3pKXCy4',
-};
+// initialize app server
+const app = Express();
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
-const vin = {
-  txid: '522f5e10a101de1b8e2b2289b2f5801daf007221f01a7256a3c961c9d26412fc',
-  prevout: {
-    hash: '892d3a0a01ab1a1c3d67e1592e5bd11df687e26098dda08478e6a58e0f6b337a',
-    n: 0,
-    value: 5000000000,
-    scriptPubKey: '1Nd85AnFYDtaQAG6vF9FVWXFWksG5HuA3M',
-  },
-  scriptSig: '044283eb5f9aa7421f646f266fbf5f7a72b7229a7b90a088d1fe45292844557b1d80ed9ac96d5b3ff8286e7794e05c28f70ae671c7fecd634dd278eb0373e6a3ba 3044022040f0ef15e90e017b9cc1b8a06e397cac73678a95ae85bc6919a60ff62249e96802206c6a9f09c137e3dbd36a13e126d549cbc3cb2ab4e0b48f9333183e5f38dcff59',
-};
 
-console.log(testVerification(vin));
-console.log('\n\n\n');
-console.log('> New signature: ', unlockTransaction(vin.txid, myWallet.privateKey));
+app.listen(process.env.PORT || 3000, async function() {
+  console.log('> App server listening on port ', process.env.PORT);
+  // get public facing IP address
+  const ipAddr = await getIPAddress();
+  // connect to pool of nodes via Pusher
+  const pusher = new Pusher(PUSHER_APP_KEY, {
+    auth: { params: { ip_addr: ipAddr, port: 8334 } },
+    cluster: 'us2',
+    authEndpoint: 'https://pusher-presence-auth.herokuapp.com/pusher/auth', // this can be changed to localhost
+    encrypted: true,
+  });
+
+  // subscribe to channel with other nodes
+  const channel = pusher.subscribe('presence-node-coin');
+  // once our node is connected we can access all of the members
+  channel.bind('pusher:subscription_succeeded', async (members) => {
+    console.log('> pusher:subscription_succeeded: ', members);
+    let peers = [ ];
+    channel.members.each(({ id }) => {
+      if (id !== ipAddr) {
+        peers.push(id);
+      }
+    });
+    // only connect to a max of 25 nodes
+    for (let i = 0; i < Math.min(MAX_PEERS, peers.length); i++) {
+      await connectWithPeer(peers[i], 8334);
+    }
+  });
+
+  // add basic networking
+  const tcpServer = net.createServer();
+  tcpServer.on('connection', handleConnection);
+  tcpServer.listen(8334, '0.0.0.0', () => {
+    console.log('> TCP/IP server listening on ', tcpServer.address());
+  });
+});
+
+// given an IP address, establish a TCP/IP connection with the node
+function connectWithPeer(ip, port) {
+  const client = new net.Socket();
+
+  client.connect(port, ip, () => {
+    console.log('> Connected to peer: ', `${ip}:${port}`);
+    // send version number and last block hash to peer
+    client.write(`VERSION 1 00000244a5bae572247ca9f5b9149fc3980fa90a7a70cd35030a29d81ebc88ea`);
+  });
+
+  client.on('data', data => {
+    console.log('> Received data from: ', `${ip}:${port}`, data);
+  });
+}
+
+// when another node connects with our TCP/IP listener, respond accordingly
+function handleConnection(conn) {
+  console.log('> New client connection from: ', `${conn.remoteAddress}:${conn.remotePort}`);
+  conn.setEncoding('utf8');
+  conn.on('data', (data) => {
+    console.log('> Received data: ', data);
+  });
+}
+
+// get public facing IP address
+function getIPAddress() {
+  return new Promise((resolve, reject) => {
+    network.get_public_ip((err, ip) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(ip);
+    });
+  });
+}
