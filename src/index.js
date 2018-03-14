@@ -1,10 +1,13 @@
 import 'babel-polyfill';
 
+import BlockModel from 'models/Block';
 import Express from 'express';
 import Pusher from 'pusher-js';
 import bodyParser from 'body-parser';
+import { connectToDB } from 'db/connectToDB';
 import net from 'net';
 import network from 'network';
+import store from 'store/store';
 
 // variables for Pusher network
 const PUSHER_APP_KEY = '86e36fb6cb404d67a108'; // connect via public key
@@ -18,6 +21,11 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.listen(process.env.PORT || 3000, async function() {
   console.log('> App server listening on port ', process.env.PORT);
+  // connect with db
+  const connectedToDB = await connectToDB();
+  // get saved blocks
+  const savedBlocks = await BlockModel.find({ });
+  console.log('> Saved blocks: ', savedBlocks.length);
   // get public facing IP address
   const ipAddr = await getIPAddress();
   // connect to pool of nodes via Pusher
