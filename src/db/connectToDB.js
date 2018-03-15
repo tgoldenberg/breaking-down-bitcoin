@@ -13,5 +13,3 @@ export async function connectToDB() {
     });
   });
 }
-
-export default connectToDB;

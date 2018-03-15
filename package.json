@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node build/nodecoin.js",
+    "seed": "SEED=true node build/nodecoin.js",
     "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
     "test": "jest --watch"
   },

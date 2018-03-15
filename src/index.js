@@ -7,7 +7,9 @@ import bodyParser from 'body-parser';
 import { connectToDB } from 'db/connectToDB';
 import net from 'net';
 import network from 'network';
+import { seedBlocks } from '__mocks__/seedBlocks';
 import store from 'store/store';
+import { verifySignature } from 'utils/verifySignature';
 
 // variables for Pusher network
 const PUSHER_APP_KEY = '86e36fb6cb404d67a108'; // connect via public key
@@ -23,6 +25,10 @@ app.listen(process.env.PORT || 3000, async function() {
   console.log('> App server listening on port ', process.env.PORT);
   // connect with db
   const connectedToDB = await connectToDB();
+  // seed database if SEED=true
+  if (process.env.SEED === 'true') {
+    await seedBlocks();
+  }
   // get saved blocks
   const savedBlocks = await BlockModel.find({ });
   console.log('> Saved blocks: ', savedBlocks.length);

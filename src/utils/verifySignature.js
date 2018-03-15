@@ -55,3 +55,6 @@ export function testVerification(vin) {
   console.log('> Signature: ', signature);
   return verifyUnlock(txid, prevout.scriptPubKey, publicKey, signature);
 }
+
+// let pk = '0fcb37c77f68a69b76cd5b160ac9c85877b4e8a09d8bcde2c778715c27f9a347';
+// console.log(unlockTransaction('a13ecf8dc0587df60bcbd7338ae9d7c6251705627df3f4d17e1fa0a4f647f6db', pk));
