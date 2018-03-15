@@ -6,10 +6,10 @@ const initialState = {
   // Initialization
   dbLoaded: false,
   lastBlock: null,
+  numBlocks: 0,
   allPeers: [ ], // list of { ip: String, port: Number }
   version: 1,
   difficulty: 0,
-  numBlocks: 0,
 
   // Mempool
   memoryPool: [ ], // list of valid transactions (txs)
@@ -26,12 +26,12 @@ let newUnfetchedHeaders, newLoadingHeaders, peerIdx, newMemoryPool, tempMempool;
 
 const reducer = (state = initialState, action) => {
   switch(action.type) {
-    case 'SET_INITIAL_BLOCK_COUNT':
+    case 'SET_INITIAL_BLOCKS':
       return {
         ...state,
         dbLoaded  : true,
-        lastBlock : action.lastBlock,
-        numBlocks : action.numBlocks,
+        lastBlock : action.blocks[action.blocks.length - 1],
+        numBlocks : action.blocks.length,
       };
     case 'ADD_BLOCK':
       return {

@@ -3,6 +3,7 @@ import 'babel-polyfill';
 import BlockModel from 'models/Block';
 import Express from 'express';
 import Pusher from 'pusher-js';
+import { areBlocksValid } from 'utils/validateBlock';
 import bodyParser from 'body-parser';
 import { connectToDB } from 'db/connectToDB';
 import net from 'net';
@@ -30,8 +31,17 @@ app.listen(process.env.PORT || 3000, async function() {
     await seedBlocks();
   }
   // get saved blocks
-  const savedBlocks = await BlockModel.find({ });
+  let savedBlocks = await BlockModel.find({ });
   console.log('> Saved blocks: ', savedBlocks.length);
+  // validate blocks
+  const valid = await areBlocksValid(savedBlocks);
+  if (!valid || !savedBlocks.length) {
+    // initialize to genesis block
+    savedBlocks = await seedBlocks(true);
+  }
+
+  store.dispatch({ type: 'SET_INITIAL_BLOCKS', blocks: savedBlocks });
+
   // get public facing IP address
   const ipAddr = await getIPAddress();
   // connect to pool of nodes via Pusher

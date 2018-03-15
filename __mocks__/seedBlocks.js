@@ -24,7 +24,8 @@ const friendWallet = {
   privateKeyWIF: '5JZ5LHz7Kr3FXeU7asLfffasonpmxUX3smTQb8LtsD21UQqiYqo',
 };
 
-export async function seedBlocks() {
+export async function seedBlocks(genesisOnly = false) {
+  let result = [ ];
   console.log('> Seeding db with initial blocks...');
   let blk, header, cbTx, tx, newBlock;
   // remove existing blocks first from MongoDB
@@ -39,7 +40,11 @@ export async function seedBlocks() {
   // save genesis block to MongoDB
   newBlock = new BlockModel(blk.getDBFormat());
   await newBlock.save();
+  result.push(newBlock);
   console.log('> Genesis block saved: ', newBlock.hash);
+  if (genesisOnly) {
+    return [ newBlock ];
+  }
   ///////////////////////////////////////////////////////
   //
   // create new block that awards coinbase to friendWallet
@@ -71,6 +76,7 @@ export async function seedBlocks() {
 
   newBlock = new BlockModel(blk.getDBFormat());
   await newBlock.save();
+  result.push(newBlock);
   console.log('> Block #2 saved: ', newBlock.hash);
 
   ///////////////////////////////////////////////////////
@@ -104,5 +110,7 @@ export async function seedBlocks() {
 
   newBlock = new BlockModel(blk.getDBFormat());
   await newBlock.save();
+  result.push(newBlock);
   console.log('> Block #3 saved: ', newBlock.hash);
+  return result;
 }
