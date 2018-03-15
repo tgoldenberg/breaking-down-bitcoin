@@ -1,4 +1,5 @@
 import 'babel-polyfill';
+import 'babel-register';
 
 import BlockModel from 'models/Block';
 import Express from 'express';
@@ -6,6 +7,8 @@ import Pusher from 'pusher-js';
 import { areBlocksValid } from 'utils/validateBlock';
 import bodyParser from 'body-parser';
 import { connectToDB } from 'db/connectToDB';
+import find from 'lodash/find';
+import { handleData } from './net/handleData';
 import net from 'net';
 import network from 'network';
 import { seedBlocks } from '__mocks__/seedBlocks';
@@ -15,6 +18,7 @@ import { verifySignature } from 'utils/verifySignature';
 // variables for Pusher network
 const PUSHER_APP_KEY = '86e36fb6cb404d67a108'; // connect via public key
 const MAX_PEERS = 25;
+const DL = '~~~~~~';
 
 // initialize app server
 const app = Express();
@@ -60,13 +64,43 @@ app.listen(process.env.PORT || 3000, async function() {
     let peers = [ ];
     channel.members.each(({ id }) => {
       if (id !== ipAddr) {
-        peers.push(id);
+        peers.push({ ip: id, port: 8334, connected: false, client: null, synced: false });
       }
     });
+    store.dispatch({ type: 'SET_PEERS', allPeers: peers.slice(0, MAX_PEERS) });
     // only connect to a max of 25 nodes
     for (let i = 0; i < Math.min(MAX_PEERS, peers.length); i++) {
-      await connectWithPeer(peers[i], 8334);
+      await connectWithPeer(peers[i].ip, 8334);
     }
+  });
+
+  // MEMBER REMOVED
+  channel.bind('pusher:member_removed', function(member){
+    console.log('> pusher:member_removed: ', member);
+    let allPeers = store.getState().allPeers;
+    let newAllPeers = [ ];
+    allPeers.forEach(peer => {
+      if (peer.ip !== member.id) {
+        newAllPeers.push(peer);
+      }
+    });
+    store.dispatch({ type: 'SET_PEERS', allPeers: newAllPeers });
+  });
+
+  // MEMBER ADDED
+  channel.bind('pusher:member_added', async function(member) {
+    console.log('> pusher:member_added: ', member);
+    let allPeers = store.getState().allPeers;
+    allPeers.push({ ip: member.id, connected: false, client: null, synced: false });
+    store.dispatch({ type: 'SET_PEERS', allPeers });
+    // wait 30 seconds before initiating connection
+    setTimeout(async () => {
+      let allPeers = store.getState().allPeers;
+      let peer = find(allPeers, ({ ip }) => ip === member.id);
+      if (!peer || !peer.connected) {
+        await connectWithPeer(member.id, 8334);
+      }
+    }, 10 * 1000);
   });
 
   // add basic networking
@@ -77,28 +111,37 @@ app.listen(process.env.PORT || 3000, async function() {
   });
 });
 
+
+
 // given an IP address, establish a TCP/IP connection with the node
 function connectWithPeer(ip, port) {
-  const client = new net.Socket();
+  try {
+    const client = new net.Socket();
+    client.setEncoding('utf8');
 
-  client.connect(port, ip, () => {
-    console.log('> Connected to peer: ', `${ip}:${port}`);
-    // send version number and last block hash to peer
-    client.write(`VERSION 1 00000244a5bae572247ca9f5b9149fc3980fa90a7a70cd35030a29d81ebc88ea`);
-  });
-
-  client.on('data', data => {
-    console.log('> Received data from: ', `${ip}:${port}`, data);
-  });
+    client.connect(port, ip, () => {
+      console.log('> Connected to peer: ', `${ip}:${port}`);
+      store.dispatch({ type: 'CONNECT_PEER', ip, client, port });
+      // send version number and last block hash to peer
+      let lastBlockHash = store.getState().lastBlock.hash;
+      client.write(['VERSION', 1, lastBlockHash ].join(DL));
+    });
+    const ctx = { client, isServer: false, ip };
+    client.on('data', handleData.bind(ctx));
+    client.on('error', (err) => console.log(err));
+  } catch (e) {
+    console.log('> Could not connect with peer: ', e.message);
+  }
 }
 
 // when another node connects with our TCP/IP listener, respond accordingly
 function handleConnection(conn) {
   console.log('> New client connection from: ', `${conn.remoteAddress}:${conn.remotePort}`);
   conn.setEncoding('utf8');
-  conn.on('data', (data) => {
-    console.log('> Received data: ', data);
-  });
+  const ctx = { client: conn, isServer: true, ip: conn.remoteAddress };
+  store.dispatch({ type: 'CONNECT_PEER', client: conn, ip: conn.remoteAddress, port: conn.remotePort });
+  conn.on('data', handleData.bind(ctx));
+  conn.on('error', (err) => console.log(err));
 }
 
 // get public facing IP address

@@ -32,7 +32,6 @@ export async function isBlockValid(block, prevBlock) {
   // check nonce
   const target = Math.pow(2, 256 - block.difficulty);
   if (parseInt(block.hash, 16) > target) {
-    console.log('> Incorrect nonce: ', block.hash);
     return false;
   }
   return true;
