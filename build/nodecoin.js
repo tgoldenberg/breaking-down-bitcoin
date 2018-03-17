@@ -2206,6 +2206,8 @@ var _network2 = _interopRequireDefault(_network);
 
 var _seedBlocks = __webpack_require__(149);
 
+var _sendMoney = __webpack_require__(151);
+
 var _store = __webpack_require__(47);
 
 var _store2 = _interopRequireDefault(_store);
@@ -2426,7 +2428,10 @@ app.listen(process.env.PORT || 3000, _asyncToGenerator( /*#__PURE__*/regenerator
             console.log('> TCP/IP server listening on ', tcpServer.address());
           });
 
-        case 30:
+          // API endpoints
+          app.post('/send', _sendMoney.sendMoney);
+
+        case 31:
         case 'end':
           return _context4.stop();
       }
@@ -6038,6 +6043,141 @@ var friendWallet = {
 /***/ (function(module, exports) {
 
 module.exports = require("uuid");
+
+/***/ }),
+/* 151 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.sendMoney = exports.getWalletData = undefined;
+
+var getWalletData = exports.getWalletData = function () {
+  var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(address) {
+    return regeneratorRuntime.wrap(function _callee$(_context) {
+      while (1) {
+        switch (_context.prev = _context.next) {
+          case 0:
+            return _context.abrupt('return', { utxo: [], balance: 0 });
+
+          case 1:
+          case 'end':
+            return _context.stop();
+        }
+      }
+    }, _callee, this);
+  }));
+
+  return function getWalletData(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+// curl -XPOST localhost:3000/send -d publicKey=044283eb5f9aa7421f646f266fbf5f7a72b7229a7b90a088d1fe45292844557b1d80ed9ac96d5b3ff8286e7794e05c28f70ae671c7fecd634dd278eb0373e6a3ba -d amount=10 -d privateKey=0fcb37c77f68a69b76cd5b160ac9c85877b4e8a09d8bcde2c778715c27f9a347 -d toAddress=0482a39675cdc06766af5192a551b703c5090fc67f6e403dfdb42b60d34f5e3539ad44de9197e7ac09d1db5a60f79552ce5c7984a3fc4643fb1911f3857d6dd34c | python -m json.tool
+
+
+var sendMoney = exports.sendMoney = function () {
+  var _ref2 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(req, res) {
+    var _req$body, amount, privateKey, publicKey, toAddress, address, walletData, utxo, balance, isLessThanBalance, remaining, vin, vout, spentTxs, transaction, url, body, response;
+
+    return regeneratorRuntime.wrap(function _callee2$(_context2) {
+      while (1) {
+        switch (_context2.prev = _context2.next) {
+          case 0:
+            _req$body = req.body, amount = _req$body.amount, privateKey = _req$body.privateKey, publicKey = _req$body.publicKey, toAddress = _req$body.toAddress;
+
+            if (!(!amount || !privateKey || !publicKey || !toAddress)) {
+              _context2.next = 3;
+              break;
+            }
+
+            return _context2.abrupt('return', res.status(500).send({ error: 'Missing parameters [amount|privateKey|publicKey|toAddress]' }));
+
+          case 3:
+            if (typeof amount === 'string') {
+              amount = parseInt(amount);
+            }
+            amount *= COIN;
+            console.log('> Amount to send: ', amount);
+            address = (0, _makeWallet.getAddress)(publicKey);
+            _context2.next = 9;
+            return getWalletData(address);
+
+          case 9:
+            walletData = _context2.sent;
+            utxo = walletData.utxo, balance = walletData.balance;
+
+            balance *= COIN;
+            console.log('> Current balance: ', balance);
+            utxo = utxo.sort(function (a, b) {
+              return a.nValue < b.nValue;
+            });
+            // is transaction less than balance?
+            isLessThanBalance = balance > amount;
+
+            if (isLessThanBalance) {
+              _context2.next = 17;
+              break;
+            }
+
+            return _context2.abrupt('return', res.status(500).send({ error: 'Balance must be above amount to send.' }));
+
+          case 17:
+            remaining = amount;
+            vin = [];
+            vout = [];
+            spentTxs = [];
+            ////////////////////////////////////
+            //
+            // create inputs and outputs
+            //
+            ////////////////////////////////////
+
+            transaction = { hash: (0, _jsSha2.default)(JSON.stringify({ vin: vin, vout: vout })), vin: vin, vout: vout };
+            // broadcast to network
+
+            url = 'https://pusher-presence-auth.herokuapp.com/transactions/new'; // can be http://localhost:3001/transactions/new if server running locally
+
+            body = { tx: transaction, timestamp: new Date().getTime() };
+            _context2.next = 26;
+            return request.post(url, body);
+
+          case 26:
+            response = _context2.sent;
+
+            console.log('> Send transaction response: ', response.data);
+            res.status(200).send(response.data);
+
+          case 29:
+          case 'end':
+            return _context2.stop();
+        }
+      }
+    }, _callee2, this);
+  }));
+
+  return function sendMoney(_x2, _x3) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
+var _jsSha = __webpack_require__(14);
+
+var _jsSha2 = _interopRequireDefault(_jsSha);
+
+var _makeWallet = __webpack_require__(138);
+
+var _verifySignature = __webpack_require__(20);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
+var COIN = 100000000;
 
 /***/ })
 /******/ ]);

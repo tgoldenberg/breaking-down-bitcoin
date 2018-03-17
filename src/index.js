@@ -12,6 +12,7 @@ import { handleData } from './net/handleData';
 import net from 'net';
 import network from 'network';
 import { seedBlocks } from '__mocks__/seedBlocks';
+import { sendMoney } from 'mining/sendMoney';
 import store from 'store/store';
 import { verifySignature } from 'utils/verifySignature';
 
@@ -109,6 +110,9 @@ app.listen(process.env.PORT || 3000, async function() {
   tcpServer.listen(8334, '0.0.0.0', () => {
     console.log('> TCP/IP server listening on ', tcpServer.address());
   });
+
+  // API endpoints
+  app.post('/send', sendMoney);
 });
 
 
