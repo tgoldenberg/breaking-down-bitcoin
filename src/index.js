@@ -1,10 +1,12 @@
 import 'babel-polyfill';
 import 'babel-register';
 
+import { areBlocksValid, isTxValid } from 'utils/validateBlock';
+
 import BlockModel from 'models/Block';
 import Express from 'express';
 import Pusher from 'pusher-js';
-import { areBlocksValid } from 'utils/validateBlock';
+import Transaction from 'models/Transaction';
 import bodyParser from 'body-parser';
 import { connectToDB } from 'db/connectToDB';
 import find from 'lodash/find';
@@ -14,6 +16,7 @@ import network from 'network';
 import { seedBlocks } from '__mocks__/seedBlocks';
 import { sendMoney } from 'mining/sendMoney';
 import store from 'store/store';
+import uniq from 'lodash/uniq';
 import { verifySignature } from 'utils/verifySignature';
 
 // variables for Pusher network
@@ -102,6 +105,21 @@ app.listen(process.env.PORT || 3000, async function() {
         await connectWithPeer(member.id, 8334);
       }
     }, 10 * 1000);
+  });
+
+  channel.bind('transaction:new', async (data) => {
+    console.log('> transaction:new: ', data.tx.hash);
+    // validate transaction
+    const isValid = await isTxValid(data.tx);
+    if (isValid) {
+      // add to memory pool of valid transactions
+      store.dispatch({ type: 'NEW_TX', tx: data.tx });
+      let tx = new Transaction(data.tx);
+      await tx.save();
+      console.log('> New tx: ', tx);
+    } else {
+      console.log('> Invalid tx: ', data.tx.hash);
+    }
   });
 
   // add basic networking
