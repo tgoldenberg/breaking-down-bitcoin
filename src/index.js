@@ -1,19 +1,25 @@
 import 'babel-polyfill';
 import 'babel-register';
 
+import { areBlocksValid, isTxValid } from 'utils/validateBlock';
+
 import BlockModel from 'models/Block';
 import Express from 'express';
 import Pusher from 'pusher-js';
-import { areBlocksValid } from 'utils/validateBlock';
+import Transaction from 'models/Transaction';
 import bodyParser from 'body-parser';
 import { connectToDB } from 'db/connectToDB';
 import find from 'lodash/find';
 import { handleData } from './net/handleData';
+import { isBlockValid } from 'utils/validateBlock';
+import { isNodeSynced } from './net/isNodeSynced';
 import net from 'net';
 import network from 'network';
 import { seedBlocks } from '__mocks__/seedBlocks';
 import { sendMoney } from 'mining/sendMoney';
+import { startMining } from 'mining/startMining';
 import store from 'store/store';
+import uniq from 'lodash/uniq';
 import { verifySignature } from 'utils/verifySignature';
 
 // variables for Pusher network
@@ -103,6 +109,37 @@ app.listen(process.env.PORT || 3000, async function() {
       }
     }, 10 * 1000);
   });
+
+  channel.bind('transaction:new', async (data) => {
+    console.log('> transaction:new: ', data.tx.hash);
+    // validate transaction
+    const isValid = await isTxValid(data.tx);
+    if (isValid) {
+      // add to memory pool of valid transactions
+      store.dispatch({ type: 'NEW_TX', tx: data.tx });
+    } else {
+      console.log('> Invalid tx: ', data.tx.hash);
+    }
+  });
+
+  channel.bind('block:new', async (data) => {
+    console.log('> block:new: ', data);
+    // is node synced ?
+    const isSynced = await isNodeSynced();
+    // validate block
+    const lastBlock = store.getState().lastBlock;
+
+    const isValid = await isBlockValid(data.block, lastBlock);
+
+    if (isValid) {
+      store.dispatch({ type: 'STOP_MINING' });
+      let newBlock = new BlockModel(data.block);
+      await newBlock.save();
+
+      store.dispatch({ type: 'ADD_BLOCK', block: newBlock });
+      await startMining();
+    }
+  })
 
   // add basic networking
   const tcpServer = net.createServer();

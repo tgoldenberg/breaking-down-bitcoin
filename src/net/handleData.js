@@ -1,5 +1,6 @@
 import BlockModel from 'models/Block';
 import { isBlockValid } from 'utils/validateBlock';
+import { startMining } from 'mining/startMining';
 import store from 'store/store';
 import { wait } from 'utils/wait';
 
@@ -29,6 +30,7 @@ export async function handleData(data) {
       // if peer has same blockheader, set peer as synced
       if (peerLastBlockHash === lastBlockHash) {
         store.dispatch({ type: 'SYNC_PEER', ip });
+        await startMining();
         return;
       }
       // check if peer has more blocks
@@ -38,6 +40,7 @@ export async function handleData(data) {
         client.write(['GETBLOCKS', lastBlockHash].join(DL));
       } else {
         store.dispatch({ type: 'SYNC_PEER', ip });
+        await startMining();
       }
       break;
     case 'GETBLOCKS':
@@ -55,6 +58,7 @@ export async function handleData(data) {
       blockheaders = args;
       if (!blockheaders.length) {
         store.dispatch({ type: 'SYNC_PEER', ip });
+        await startMining();
         return;
       }
       store.dispatch({ type: 'ADD_UNFETCHED_HEADERS', headers: blockheaders });
