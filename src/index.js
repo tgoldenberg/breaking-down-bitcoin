@@ -130,7 +130,8 @@ app.listen(process.env.PORT || 3000, async function() {
     const lastBlock = store.getState().lastBlock;
 
     const isValid = await isBlockValid(data.block, lastBlock);
-
+    console.log('> New block valid: ', isValid);
+    
     if (isValid) {
       store.dispatch({ type: 'STOP_MINING' });
       let newBlock = new BlockModel(data.block);
@@ -139,7 +140,7 @@ app.listen(process.env.PORT || 3000, async function() {
       store.dispatch({ type: 'ADD_BLOCK', block: newBlock });
       await startMining();
     }
-  })
+  });
 
   // add basic networking
   const tcpServer = net.createServer();

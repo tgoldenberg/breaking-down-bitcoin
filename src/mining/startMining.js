@@ -59,6 +59,8 @@ export async function startMining() {
   };
 
   let newBlock = new BlockClass(header, finalizedTxs);
+
+  store.dispatch({ type: 'START_MINING' });
   newBlock.findCorrectNonce();
 
   // console.log('> Finalized block: ', newBlock);

@@ -2699,23 +2699,25 @@ app.listen(process.env.PORT || 3000, _asyncToGenerator( /*#__PURE__*/regenerator
                     case 7:
                       isValid = _context5.sent;
 
+                      console.log('> New block valid: ', isValid);
+
                       if (!isValid) {
-                        _context5.next = 16;
+                        _context5.next = 17;
                         break;
                       }
 
                       _store2.default.dispatch({ type: 'STOP_MINING' });
                       newBlock = new _Block2.default(data.block);
-                      _context5.next = 13;
+                      _context5.next = 14;
                       return newBlock.save();
 
-                    case 13:
+                    case 14:
 
                       _store2.default.dispatch({ type: 'ADD_BLOCK', block: newBlock });
-                      _context5.next = 16;
+                      _context5.next = 17;
                       return (0, _startMining.startMining)();
 
-                    case 16:
+                    case 17:
                     case 'end':
                       return _context5.stop();
                   }
@@ -6915,6 +6917,8 @@ var startMining = exports.startMining = function () {
             };
             newBlock = new _Block2.default(header, finalizedTxs);
 
+
+            _store2.default.dispatch({ type: 'START_MINING' });
             newBlock.findCorrectNonce();
 
             // console.log('> Finalized block: ', newBlock);
@@ -6922,16 +6926,16 @@ var startMining = exports.startMining = function () {
             // submit new block with nonce and txs
             url = 'https://pusher-presence-auth.herokuapp.com/blocks/new';
             body = { block: newBlock.getDBFormat() };
-            _context.next = 31;
+            _context.next = 32;
             return _request2.default.post(url, body);
 
-          case 31:
+          case 32:
             response = _context.sent;
 
             console.log('> Send block response: ', response.data);
             return _context.abrupt('return', true);
 
-          case 34:
+          case 35:
           case 'end':
             return _context.stop();
         }
