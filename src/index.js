@@ -2,6 +2,7 @@ import 'babel-polyfill';
 import 'babel-register';
 
 import { areBlocksValid, isTxValid } from 'utils/validateBlock';
+import { getWalletData, sendMoney } from 'mining/sendMoney';
 
 import BlockModel from 'models/Block';
 import Express from 'express';
@@ -13,10 +14,10 @@ import find from 'lodash/find';
 import { handleData } from './net/handleData';
 import { isBlockValid } from 'utils/validateBlock';
 import { isNodeSynced } from './net/isNodeSynced';
+import { makeWallet } from 'utils/makeWallet';
 import net from 'net';
 import network from 'network';
 import { seedBlocks } from '__mocks__/seedBlocks';
-import { sendMoney } from 'mining/sendMoney';
 import { startMining } from 'mining/startMining';
 import store from 'store/store';
 import uniq from 'lodash/uniq';
@@ -131,7 +132,7 @@ app.listen(process.env.PORT || 3000, async function() {
 
     const isValid = await isBlockValid(data.block, lastBlock);
     console.log('> New block valid: ', isValid);
-    
+
     if (isValid) {
       store.dispatch({ type: 'STOP_MINING' });
       let newBlock = new BlockModel(data.block);
@@ -151,6 +152,20 @@ app.listen(process.env.PORT || 3000, async function() {
 
   // API endpoints
   app.post('/send', sendMoney);
+  // curl -XPOST localhost:3000/wallets/new | python -m json.tool
+  app.post('/wallets/new', async function(req, res) {
+    // generate new wallet and provide to user
+    let wallet = await makeWallet();
+    res.status(200).send({ wallet });
+  });
+
+  // curl -XGET localhost:3000/wallets/1Nd85AnFYDtaQAG6vF9FVWXFWksG5HuA3M | python -m json.tool
+  app.get('/wallets/:address', async function (req, res) {
+    let walletData = await getWalletData(req.params.address);
+    let { utxo, balance } = walletData;
+    res.status(200).send({ wallet: { balance }, utxo: utxo });
+  });
+
 });
 
 

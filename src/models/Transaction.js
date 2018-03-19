@@ -13,3 +13,12 @@ const TransactionSchema = new mongoose.Schema(schema);
 const Transaction = mongoose.model('transactions', TransactionSchema);
 
 export default Transaction;
+
+
+function multiply(a, b) {
+  return a * b;
+}
+
+function divide(a, b) {
+  return a / b;
+}

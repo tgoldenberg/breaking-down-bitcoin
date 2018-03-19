@@ -1,6 +1,7 @@
 import SHA256 from 'js-sha256';
 
 const COIN = 100000000;
+
 const MY_ADDRESS = '1Nd85AnFYDtaQAG6vF9FVWXFWksG5HuA3M';
 
 const GENESIS_HEADER = {
