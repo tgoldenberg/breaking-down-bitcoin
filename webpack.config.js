@@ -2,17 +2,13 @@
 const webpack = require('webpack');
 const fs = require('fs');
 
-const UglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
 const env = process.env.WEBPACK_ENV;
 const libraryName = 'nodecoin';
 let plugins = [ ];
 let outputFile = 'nodecoin.js';
 
-if (env === 'build') {
-  plugins.push(new UglifyJsPlugin({ minimize: true }));
-  outputFile = `${libraryName }.min.js`;
-} else {
-  outputFile = `${libraryName }.js`;
+if (env === 'production') {
+  outputFile = 'nodecoin.min.js';
 }
 
 let nodeModules = fs.readdirSync('node_modules')
@@ -26,20 +22,18 @@ let nodeModules = fs.readdirSync('node_modules')
 
 let config = {
   entry: `${__dirname }/src/index.js`,
-  devtool: 'sourcemap',
-  target: 'node',
   output: {
     path: `${__dirname }/build`,
     filename: outputFile,
-    library: 'events',
-    libraryTarget: 'umd',
  },
+ target: 'node',
  externals: nodeModules,
+ mode: env === 'production' ? 'production' : 'development',
  module: {
-   loaders: [
+   rules: [
      {
        test: /(\.js)$/,
-       loader: 'babel-loader',
+       use: 'babel-loader',
        exclude: /(node_modules|build)/,
      },
    ],
@@ -47,6 +41,7 @@ let config = {
  resolve: {
    extensions: [ '.js' ],
  },
+ plugins: plugins,
 };
 
 module.exports = config;

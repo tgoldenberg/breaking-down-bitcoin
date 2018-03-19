@@ -7,6 +7,7 @@
     "start": "node build/nodecoin.js",
     "seed": "SEED=true node build/nodecoin.js",
     "dev": "WEBPACK_ENV=dev webpack --progress --colors --watch",
+    "build": "WEBPACK_ENV=production webpack --optimize-minimize",
     "test": "jest --watch"
   },
   "repository": {
@@ -46,7 +47,7 @@
     "secp256k1": "^3.5.0",
     "secure-random": "^1.1.1",
     "uuid": "^3.2.1",
-    "webpack": "^3.8.1"
+    "webpack": "^4.1.1"
   },
   "devDependencies": {
     "babel-loader": "^7.1.4",
